@@ -15,7 +15,54 @@ function fetchAndRender(chartId, infoCardId, dataKey, unit, totalCallback) {
       const times = data.map(item => item["Thời gian"]);
 
       // Vẽ biểu đồ
-      const options = {
+      const options_dongdien = {
+        chart: {
+          type: 'line',
+          height: '90%',
+          width: '80%',
+          toolbar: { show: false }
+        },
+        responsive: [{
+          breakpoint: 600,
+          options: {
+            chart: {
+              height: 200  // giảm chiều cao khi nhỏ hơn 600px
+            }
+          }
+        }
+      ]
+        ,
+        series: [{
+          name: dataKey,
+          data: values
+        }],
+        xaxis: {
+          categories: times,
+          labels: {
+            rotate: -45,
+            trim: true,
+            hideOverlappingLabels: true
+          }
+        },
+        stroke: {
+        curve: 'smooth',
+        width: 4,               // nét dày hơn (mặc định 3)
+        colors: ['#F3C623']     // màu xanh đậm hơn, bạn có thể đổi
+        },
+
+        fill: {
+        type: 'solid',
+        opacity: 0.4,
+        color: '#F3C623'
+        },
+        colors: ['#F3C623'],
+        tooltip: {
+          x: {
+            format: 'dd/MM/yyyy HH:mm'
+          }
+        }
+      };
+      const options_dienap = {
         chart: {
           type: 'line',
           height: '90%',
@@ -62,9 +109,61 @@ function fetchAndRender(chartId, infoCardId, dataKey, unit, totalCallback) {
           }
         }
       };
+      const options_congsuat = {
+        chart: {
+          type: 'line',
+          height: '90%',
+          width: '80%',
+          toolbar: { show: false }
+        },
+        responsive: [{
+          breakpoint: 600,
+          options: {
+            chart: {
+              height: 200  // giảm chiều cao khi nhỏ hơn 600px
+            }
+          }
+        }
+      ]
+        ,
+        series: [{
+          name: dataKey,
+          data: values
+        }],
+        xaxis: {
+          categories: times,
+          labels: {
+            rotate: -45,
+            trim: true,
+            hideOverlappingLabels: true
+          }
+        },
+        stroke: {
+        curve: 'smooth',
+        width: 4,               // nét dày hơn (mặc định 3)
+        colors: ['#537D5D']     // màu xanh đậm hơn, bạn có thể đổi
+        },
 
-      new ApexCharts(document.querySelector(chartId), options).render();
-
+        fill: {
+        type: 'solid',
+        opacity: 0.4,
+        color: '#537D5D'
+        },
+        colors: ['#537D5D'],
+        tooltip: {
+          x: {
+            format: 'dd/MM/yyyy HH:mm'
+          }
+        }
+      };
+      if(dataKey=="Điện áp (V)"){
+        new ApexCharts(document.querySelector(chartId), options_dienap).render();}
+      if(dataKey=="Dòng điện (A)"){
+        
+        new ApexCharts(document.querySelector(chartId), options_dongdien).render();
+      }
+      else{
+        new ApexCharts(document.querySelector(chartId), options_congsuat).render();}
       // So sánh số liệu cuối với số trước đó để hiển thị icon
       const len = values.length;
       const lastValue = values[len - 1];
@@ -104,4 +203,3 @@ function addToTotal(values) {
 fetchAndRender("#chart1", "#info1", "Điện áp (V)", "V");
 fetchAndRender("#chart2", "#info2", "Dòng điện (A)", "A");
 fetchAndRender("#chart3", "#info4", "Công suất tiêu thụ (W)", "W", addToTotal);
-
