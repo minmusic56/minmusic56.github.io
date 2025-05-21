@@ -1,0 +1,144 @@
+body {
+  margin: 0;
+  font-family: 'Arial', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  background: #a5bce7;
+  color: white;
+  text-align: center;
+  padding: 20px;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.container {
+  flex: 1;
+  padding: 20px;
+  background: #f5f5f5;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  width: 100%;
+  max-width: 1550px;  /* nếu muốn giới hạn */
+  margin: 30px auto;
+  box-sizing: border-box;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+}
+
+.chart {
+  height: 300px;
+}
+#info3{
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  background: #a5bce7;
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 20px;
+  text-align: center;
+  margin-top: auto;
+}
+#info1, #info2, #info4 {
+  display: flex;
+  flex-direction: column;
+  /* chiều cao do nội dung hoặc cha quyết định */
+  /* không đặt height cố định */
+}
+
+.chart {
+  width: 100% !important;  /* đảm bảo chiều rộng full container */
+  height: 300px;           /* mặc định desktop */
+  max-width: 100%;         /* tránh tràn */
+  box-sizing: border-box;  /* tính padding và border trong kích thước */
+}
+#info1 > div, #info2 > div, #info4 > div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  margin-top: auto; /* đẩy xuống đáy */
+}
+
+
+.info-card {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  width: 150px;
+  background: #a5bce7;
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 20px;
+  text-align: center;
+  margin-top: 200px;
+}
+
+.footer {
+  background: #333;
+  color: white;
+  padding: 10px;
+  text-align: center;
+}
+/* Responsive cho màn hình nhỏ */
+@media (max-width: 600px) {
+  .header {
+    font-size: 24px;
+    padding: 15px 10px;
+  }
+
+  .container {
+    padding: 10px;
+  }
+
+  .card {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  #info3,
+  .info-card {
+    position: static; /* bỏ absolute để tránh tràn màn hình */
+    width: 100%;
+    margin-top: 10px;
+    font-size: 16px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  #info1, #info2, #info4 {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #info1 > div, #info2 > div, #info4 > div {
+    justify-content: center;
+    margin-top: 5px;
+  }
+  .chart {
+    height: 200px !important; /* chiều cao nhỏ hơn trên điện thoại */
+  }
+  .footer {
+    font-size: 14px;
+    padding: 8px;
+  }
+}
+
+
+
