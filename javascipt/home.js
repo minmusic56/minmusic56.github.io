@@ -244,9 +244,25 @@ window.addEventListener("DOMContentLoaded", () => {
       <h3 style="color:#fff;">${total.toFixed(2)} W</h3>
     `;
   }
-
+  
   toggleTimeInputs();
-  startAutoUpdate();
+  startAutoUpdate();document.querySelectorAll(".chart").forEach(chartEl => {
+  chartEl.addEventListener("mouseenter", () => {
+    if (autoUpdateInterval) {
+      clearInterval(autoUpdateInterval);
+      autoUpdateInterval = null;
+      console.log("⏸️ Auto update paused due to hover");
+    }
+  });
+
+  chartEl.addEventListener("mouseleave", () => {
+    if (!autoUpdateInterval) {
+      autoUpdateInterval = setInterval(fetchAndRender, 2000);
+      console.log("▶️ Auto update resumed after hover");
+    }
+  });
+});
+
 });
 
 
