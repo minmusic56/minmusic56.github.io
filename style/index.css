@@ -85,7 +85,6 @@ body {
 @media (max-width: 768px) {
   body {
     height: auto;
-    padding: 20px 0;
   }
 
   .login-container {
@@ -99,21 +98,29 @@ body {
   .login-box {
     flex-direction: column;
   }
-
-  .left, .right {
+  .left{
     flex: none;
-    width: 100%;
+    width: 90%;
     padding: 20px;
   }
-
   .left button {
-    margin: 20px auto 0 auto;
-    width: 100%;
-    padding: 15px;
-    font-size: 18px;
+  display: flex;
+  justify-self: center;
+  padding: 10px 50px;
+  border: none;
+  border-radius: 10px;
+  background-color: #a5b5e0;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 24px;
   }
 
   .left input {
-    font-size: 16px;
+  margin-bottom: 15px;
+  padding: 10px;
+  width: 90%;
+  border-radius: 10px;
+  border: 1px solid #ddd;
   }
 }
