@@ -56,7 +56,7 @@ window.addEventListener("DOMContentLoaded", () => {
   function startAutoUpdate() {
     if (autoUpdateInterval) clearInterval(autoUpdateInterval);
     fetchAndRender();
-    autoUpdateInterval = setInterval(fetchAndRender, 2000);
+    autoUpdateInterval = setInterval(fetchAndRender, 1000);
   }
 
   function toggleTimeInputs() {
@@ -312,7 +312,7 @@ document.getElementById("download-excel-btn").addEventListener("click", function
 
   chartEl.addEventListener("mouseleave", () => {
     if (!autoUpdateInterval) {
-      autoUpdateInterval = setInterval(fetchAndRender, 2000);
+      autoUpdateInterval = setInterval(fetchAndRender, 1000);
       console.log("▶️ Auto update resumed after hover");
     }
   });
