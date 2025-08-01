@@ -1,4 +1,5 @@
 window.addEventListener("DOMContentLoaded", () => {
+  emailjs.init("E8gbkv5o0LLKhagKs"); // Thay bằng user ID của bạn trong EmailJS
   const apiID = "1agdJDtRKsAEDunMK8TD3E6hBpV87FV-I-0wQrqj2Ln8";
   const apiURL = `https://opensheet.elk.sh/${apiID}/Trang%20tính1`;
 
@@ -6,6 +7,12 @@ window.addEventListener("DOMContentLoaded", () => {
   const label_dienap = "Điện áp (V)";
   const label_dongdien = "Dòng điện (A)";
   const label_congsuat = "Công suất tiêu thụ (W)";
+
+
+  // Sau đó cứ mỗi 1 giờ thì gọi lại kiểm tra
+  setInterval(() => {
+    kiemTraVaGuiBaoCaoTuan();
+  }, 1000 * 60 * 60); // 1 giờ
 
   const arrowDown = `<svg xmlns="http://www.w3.org/2000/svg" height="60px" viewBox="0 -960 960 960" width="60px" fill="#FFFFFF"><path d="M480-360 280-560h400L480-360Z"/></svg>`;
   const arrowUp = `<svg xmlns="http://www.w3.org/2000/svg" height="60px" viewBox="0 -960 960 960" width="60px" fill="#FFFFFF"><path d="m280-400 200-201 200 201H280Z"/></svg>`;
@@ -50,13 +57,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("apply-btn").addEventListener("click", () => {
     startAutoUpdate();
+    kiemTraVaGuiBaoCaoTuan(); // 👈 Thêm dòng này
+
   });
 
   let autoUpdateInterval = null;
   function startAutoUpdate() {
     if (autoUpdateInterval) clearInterval(autoUpdateInterval);
     fetchAndRender();
-    autoUpdateInterval = setInterval(fetchAndRender, 500);
+    autoUpdateInterval = setInterval(fetchAndRender, 2000);
   }
 
   function toggleTimeInputs() {
@@ -135,7 +144,6 @@ window.addEventListener("DOMContentLoaded", () => {
         const [hh, mm, ss] = timePart.split(":").map(Number);
 
         const time = new Date(y, m - 1, d, hh, mm, ss);
-
         return time >= start && time <= end;
       });
       const times = filtered.map((r) => {
@@ -145,7 +153,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const dienap = filtered.map((r) => parseFloat((r[label_dienap] || "0").replace(",", ".")));
       const dongdien = filtered.map((r) => parseFloat((r[label_dongdien] || "0").replace(",", ".")));
-      const congsuat = filtered.map((r) => parseFloat((r[label_congsuat] || "0").replace(",", ".")));
+      const congsuat = filtered.map((r) => parseFloat((r[label_congsuat] || "0").replace(",", "."))); 
+
+      updateSummary(filtered);
 
       updateChart("#chart1", "#info1", label_dienap, dienap, times, "V", null, isSameDay);
       updateChart("#chart2", "#info2", label_dongdien, dongdien, times, "A", null, isSameDay);
@@ -195,7 +205,7 @@ document.getElementById("download-excel-btn").addEventListener("click", function
 
 
 
-  function updateChart(chartID, infoID, label, values, categories, unit, callback, isSameDay) {
+ function updateChart(chartID, infoID, label, values, categories, unit, callback, isSameDay) {
     if (!values.length) {
       console.warn(`Không có dữ liệu cho biểu đồ: ${label}`);
       return;
@@ -292,6 +302,62 @@ document.getElementById("download-excel-btn").addEventListener("click", function
     };
   }
 
+  function getChartOptions(label, values, times, isSameDay) {
+    let color = "#F3C623"; 
+    let height = 300
+    const maxWidth = window.innerWidth;
+    if (label.includes("áp")) color = "#007BFF";
+    else if (label.includes("suất")) color = "#537D5D";
+    if(maxWidth<=600&&label.includes("suất")) height = "48%";
+    else if(maxWidth<=600) height = "72%";
+    return {
+      chart: {
+        type: "line",
+        height: [height], 
+        width: "100%", 
+        toolbar: { show: false },
+        animations: {
+          enabled: true,
+          easing: "linear",
+          dynamicAnimation: { speed: 300 },
+        },
+      },
+      series: [{ name: label, data: values }],
+      xaxis: {
+        categories: times,
+        labels: {
+          rotate: -45,
+          style: { fontSize: "10px" },
+          formatter: (val) => {
+            if (!val) return "";
+            return isSameDay ? val : val.split(" ")[0];
+          },
+        },
+      },
+      stroke: { curve: "smooth", width: 4, colors: [color] },
+      fill: { type: "solid", opacity: 0.2, color },
+      colors: [color],
+      tooltip: {
+        x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" }
+      },
+      yaxis: {
+      labels: {
+        formatter: (val) => val.toFixed(2), // 👈 Hiển thị số thập phân
+        style: { fontSize: "10px" },
+      },
+    },
+    stroke: { curve: "smooth", width: 4, colors: [color] },
+    fill: { type: "solid", opacity: 0.4, color },
+    colors: [color],
+    tooltip: {
+      x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" },
+      y: {
+        formatter: (val) => `${val.toFixed(2)} ${label.includes("áp") ? "V" : label.includes("suất") ? "W" : "A"}`
+      }
+    },
+    };
+  }
+
   function updateTotal(values) {
     const total = values.reduce((a, b) => a + b, 0);
     document.getElementById("info3").innerHTML = `
@@ -312,7 +378,7 @@ document.getElementById("download-excel-btn").addEventListener("click", function
 
   chartEl.addEventListener("mouseleave", () => {
     if (!autoUpdateInterval) {
-      autoUpdateInterval = setInterval(fetchAndRender, 500);
+      autoUpdateInterval = setInterval(fetchAndRender, 2000);
       console.log("▶️ Auto update resumed after hover");
     }
   });
@@ -344,5 +410,164 @@ toggleBtn.addEventListener("click", function () {
   const container = document.getElementById("date-range-container");
   container.classList.toggle("show");
 });
+function duDoanCongSuat(values, minutesAhead = 15) {
+  if (values.length === 0) return 0;
+
+  const sampleSize = Math.min(5, values.length); // lấy 5 giá trị gần nhất
+  const recent = values.slice(-sampleSize);
+  const average = recent.reduce((a, b) => a + b, 0) / sampleSize;
+
+  // giả định không đổi trong vài phút tới
+  return average.toFixed(2);
+}
+function thongKeTheoGio(filteredData, label = "Công suất tiêu thụ (W)") {
+  const hourlyStats = {};
+
+  filteredData.forEach(row => {
+    const rawTime = row["Thời gian"];
+    if (!rawTime || !rawTime.includes(" ")) return;
+    const [_, timePart] = rawTime.split(" ");
+    const [hh] = timePart.split(":");
+
+    const hour = parseInt(hh);
+    const val = parseFloat((row[label] || "0").replace(",", "."));
+
+    if (!hourlyStats[hour]) hourlyStats[hour] = { sum: 0, count: 0 };
+    hourlyStats[hour].sum += val;
+    hourlyStats[hour].count += 1;
+  });
+
+  const result = Object.entries(hourlyStats).map(([hour, { sum, count }]) => ({
+    hour: `${hour}:00`,
+    avg: (sum / count).toFixed(2),
+  }));
+
+  return result.sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
+}// Hàm thống kê ngày có công suất tiêu thụ cao nhất
+function thongKeNgayTieuThuCaoNhat(data, label = "Công suất tiêu thụ (W)") {
+  const dailyStats = {};
+
+  data.forEach(row => {
+    const rawTime = row["Thời gian"];
+    if (!rawTime || !rawTime.includes(" ")) return;
+
+    const [datePart] = rawTime.split(" ");
+    const val = parseFloat((row[label] || "0").replace(",", "."));
+    
+    if (!dailyStats[datePart]) dailyStats[datePart] = 0;
+    dailyStats[datePart] += val;
+  });
+
+  let maxDate = null;
+  let maxValue = -Infinity;
+  for (const [date, total] of Object.entries(dailyStats)) {
+    if (total > maxValue) {
+      maxValue = total;
+      maxDate = date;
+    }
+  }
+
+  return {
+    date: maxDate,
+    total: maxValue.toFixed(2)
+  };
+}
+
+// Hàm gửi email bằng EmailJS
+function guiBaoCaoEmail(ngay, tongCongSuat) {
+  emailjs.send("service_nzpo11o", "template_ijcvrxp", {
+    title: "Báo cáo theo tuần",
+    email: "votrunganh1311@gmail.com", // có thể thay bằng input người dùng nếu cần
+    message: `📊 Báo cáo tuần:\nNgày ${ngay} có mức tiêu thụ công suất cao nhất: ${tongCongSuat} W.`
+  }).then(() => {
+    console.log("✅ Đã gửi báo cáo qua EmailJS!");
+  }).catch((error) => {
+    console.error("❌ Lỗi gửi email:", error);
+  });
+}
+
+// Hàm xử lý lấy dữ liệu và gọi hàm gửi
+function kiemTraVaGuiBaoCaoTuan() {
+  const apiURL = "https://opensheet.elk.sh/1agdJDtRKsAEDunMK8TD3E6hBpV87FV-I-0wQrqj2Ln8/Trang%20tính1";
+  const now = new Date();
+  if (now.getDay() !== 0) return; // 0 = Chủ nhật
+  fetch(apiURL)
+    .then(res => res.json())
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) {
+        alert("⚠️ Không có dữ liệu!");
+        return;
+      }
+
+      // Tìm công suất cao nhất
+      let maxPower = -Infinity;
+      let maxRow = null;
+
+      data.forEach(row => {
+        const power = parseFloat(row["Công suất tiêu thụ (W)"]);
+        if (!isNaN(power) && power > maxPower) {
+          maxPower = power;
+          maxRow = row;
+        }
+      });
+
+      if (maxRow) {
+        const ngay = now.toLocaleDateString("vi-VN");
+        guiBaoCaoEmail(ngay, maxPower);
+      } else {
+        alert("⚠️ Không tìm thấy công suất hợp lệ.");
+      }
+    })
+    .catch((err) => {
+      console.error("❌ Lỗi gọi API:", err);
+      alert("❌ Lỗi gọi dữ liệu.");
+    });
+}
+
+function updateSummary(data) {
+  if (!data || data.length === 0) return;
+
+  const label = "Công suất tiêu thụ (W)";
+  const parsedData = data
+    .map(row => {
+      const [datePart] = row["Thời gian"].split(" ");
+      const value = parseFloat((row[label] || "0").replace(",", "."));
+      if (isNaN(value)) return null; // Bỏ dữ liệu lỗi
+      return [datePart, value];
+    })
+    .filter(item => item !== null); // Bỏ null
+
+  if (parsedData.length === 0) return; // Không có dữ liệu hợp lệ
+
+  const total = parsedData.reduce((sum, item) => sum + item[1], 0);
+  document.getElementById("tong-san-luong").textContent = total.toFixed(2);
+  document.getElementById("tong-ngay").textContent = 7;
+
+  // Tìm max và min
+const max = parsedData.reduce((a, b) => (b[1] > a[1] ? b : a));
+let min = parsedData
+  .filter(x => x[1] > 0) // bỏ các giá trị bằng 0
+  .reduce((a, b) => (b[1] < a[1] ? b : a));
+
+  /*for (let i = 1; i < parsedData.length; i++) {
+    if (parsedData[i][1] > max[1]) max = parsedData[i];
+    if (parsedData[i][1] < min[1]) min = parsedData[i];
+  }*/
+
+  // Hiển thị kết quả
+  document.getElementById("ngay-max").textContent = formatDate(max[0]);
+  document.getElementById("san-luong-max").textContent = max[1].toFixed(2);
+  document.getElementById("ngay-min").textContent = min[0];
+  document.getElementById("san-luong-min").textContent = min[1].toFixed(2);
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+}
+
+
 
 
