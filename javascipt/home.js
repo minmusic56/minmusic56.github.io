@@ -14,6 +14,9 @@ window.addEventListener("DOMContentLoaded", () => {
     kiemTraVaGuiBaoCaoTuan();
   }, 1000 * 60 * 60); // 1 giờ
 
+  // Kiểm tra ngay khi khởi động (nếu là chủ nhật)
+  kiemTraVaGuiBaoCaoTuan();
+
   const arrowDown = `<svg xmlns="http://www.w3.org/2000/svg" height="60px" viewBox="0 -960 960 960" width="60px" fill="#FFFFFF"><path d="M480-360 280-560h400L480-360Z"/></svg>`;
   const arrowUp = `<svg xmlns="http://www.w3.org/2000/svg" height="60px" viewBox="0 -960 960 960" width="60px" fill="#FFFFFF"><path d="m280-400 200-201 200 201H280Z"/></svg>`;
   const noChange = `<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#FFFFFF"><path d="M130-450q-20.83 0-35.42-14.62Q80-479.24 80-500.12 80-521 94.58-535.5 109.17-550 130-550h260q20.83 0 35.42 14.62Q440-520.76 440-499.88q0 20.88-14.58 35.38Q410.83-450 390-450H130Zm440 0q-20.83 0-35.42-14.62Q520-479.24 520-500.12q0-20.88 14.58-35.38Q549.17-550 570-550h260q20.83 0 35.42 14.62Q880-520.76 880-499.88q0 20.88-14.58 35.38Q850.83-450 830-450H570Z"/></svg>`;
@@ -58,8 +61,47 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("apply-btn").addEventListener("click", () => {
     startAutoUpdate();
     kiemTraVaGuiBaoCaoTuan(); // 👈 Thêm dòng này
-
   });
+
+  // Hàm riêng để load thống kê 7 ngày vừa qua (không phụ thuộc vào filter)
+  function loadWeeklySummary() {
+    const now = new Date();
+    const past = new Date();
+    past.setDate(now.getDate() - 6);
+
+    fetch(apiURL)
+      .then(res => res.json())
+      .then(data => {
+        if (!Array.isArray(data)) {
+          console.warn("Dữ liệu API không phải là mảng:", data);
+          updateWeeklySummary([]);
+          return;
+        }
+
+        const filtered = data.filter(row => {
+          const rawTime = row["Thời gian"];
+          if (!rawTime || !rawTime.includes(" ")) return false;
+
+          const [datePart] = rawTime.split(" ");
+          const [d, m, y] = datePart.split("/").map(Number);
+          
+          // Kiểm tra tính hợp lệ của ngày tháng
+          if (isNaN(d) || isNaN(m) || isNaN(y)) return false;
+          
+          const time = new Date(y, m - 1, d);
+          
+          return time >= past && time <= now;
+        });
+
+        console.log(`Đã lọc được ${filtered.length} bản ghi cho thống kê tuần`);
+        updateWeeklySummary(filtered);
+      })
+      .catch((err) => {
+        console.error("Lỗi khi fetch dữ liệu thống kê tuần:", err);
+        // Hiển thị giá trị mặc định khi có lỗi
+        updateWeeklySummary([]);
+      });
+  }
 
   let autoUpdateInterval = null;
   function startAutoUpdate() {
@@ -154,8 +196,6 @@ window.addEventListener("DOMContentLoaded", () => {
       const dienap = filtered.map((r) => parseFloat((r[label_dienap] || "0").replace(",", ".")));
       const dongdien = filtered.map((r) => parseFloat((r[label_dongdien] || "0").replace(",", ".")));
       const congsuat = filtered.map((r) => parseFloat((r[label_congsuat] || "0").replace(",", "."))); 
-
-      updateSummary(filtered);
 
       updateChart("#chart1", "#info1", label_dienap, dienap, times, "V", null, isSameDay);
       updateChart("#chart2", "#info2", label_dongdien, dongdien, times, "A", null, isSameDay);
@@ -263,7 +303,7 @@ document.getElementById("download-excel-btn").addEventListener("click", function
         animations: {
           enabled: true,
           easing: "linear",
-          dynamicAnimation: { speed: 100 },
+          dynamicAnimation: { speed: 300 },
         },
       },
       series: [{ name: label, data: values }],
@@ -279,26 +319,20 @@ document.getElementById("download-excel-btn").addEventListener("click", function
         },
       },
       stroke: { curve: "smooth", width: 4, colors: [color] },
-      fill: { type: "solid", opacity: 0.2, color },
+      fill: { type: "solid", opacity: 0.4, color },
       colors: [color],
       tooltip: {
-        x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" }
+        x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" },
+        y: {
+          formatter: (val) => `${val.toFixed(2)} ${label.includes("áp") ? "V" : label.includes("suất") ? "W" : "A"}`
+        }
       },
       yaxis: {
-      labels: {
-        formatter: (val) => val.toFixed(2), // 👈 Hiển thị số thập phân
-        style: { fontSize: "10px" },
+        labels: {
+          formatter: (val) => val.toFixed(2),
+          style: { fontSize: "10px" },
+        },
       },
-    },
-    stroke: { curve: "smooth", width: 4, colors: [color] },
-    fill: { type: "solid", opacity: 0.4, color },
-    colors: [color],
-    tooltip: {
-      x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" },
-      y: {
-        formatter: (val) => `${val.toFixed(2)} ${label.includes("áp") ? "V" : label.includes("suất") ? "W" : "A"}`
-      }
-    },
     };
   }
 
@@ -335,26 +369,20 @@ document.getElementById("download-excel-btn").addEventListener("click", function
         },
       },
       stroke: { curve: "smooth", width: 4, colors: [color] },
-      fill: { type: "solid", opacity: 0.2, color },
+      fill: { type: "solid", opacity: 0.4, color },
       colors: [color],
       tooltip: {
-        x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" }
+        x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" },
+        y: {
+          formatter: (val) => `${val.toFixed(2)} ${label.includes("áp") ? "V" : label.includes("suất") ? "W" : "A"}`
+        }
       },
       yaxis: {
-      labels: {
-        formatter: (val) => val.toFixed(2), // 👈 Hiển thị số thập phân
-        style: { fontSize: "10px" },
+        labels: {
+          formatter: (val) => val.toFixed(2),
+          style: { fontSize: "10px" },
+        },
       },
-    },
-    stroke: { curve: "smooth", width: 4, colors: [color] },
-    fill: { type: "solid", opacity: 0.4, color },
-    colors: [color],
-    tooltip: {
-      x: { format: isSameDay ? "HH:mm:ss" : "dd/MM/yyyy" },
-      y: {
-        formatter: (val) => `${val.toFixed(2)} ${label.includes("áp") ? "V" : label.includes("suất") ? "W" : "A"}`
-      }
-    },
     };
   }
 
@@ -367,7 +395,13 @@ document.getElementById("download-excel-btn").addEventListener("click", function
   }
   
   toggleTimeInputs();
-  startAutoUpdate();document.querySelectorAll(".chart").forEach(chartEl => {
+  startAutoUpdate();
+  loadWeeklySummary(); // Load thống kê 7 ngày vừa qua ngay khi khởi động
+  
+  // Cập nhật thống kê tuần mỗi 30 phút
+  setInterval(loadWeeklySummary, 30 * 60 * 1000);
+
+  document.querySelectorAll(".chart").forEach(chartEl => {
   chartEl.addEventListener("mouseenter", () => {
     if (autoUpdateInterval) {
       clearInterval(autoUpdateInterval);
@@ -474,91 +508,240 @@ function thongKeNgayTieuThuCaoNhat(data, label = "Công suất tiêu thụ (W)")
 }
 
 // Hàm gửi email bằng EmailJS
-function guiBaoCaoEmail(ngay, tongCongSuat) {
-  emailjs.send("service_nzpo11o", "template_ijcvrxp", {
-    title: "Báo cáo theo tuần",
-    email: "votrunganh1311@gmail.com", // có thể thay bằng input người dùng nếu cần
-    message: `📊 Báo cáo tuần:\nNgày ${ngay} có mức tiêu thụ công suất cao nhất: ${tongCongSuat} W.`
-  }).then(() => {
-    console.log("✅ Đã gửi báo cáo qua EmailJS!");
-  }).catch((error) => {
-    console.error("❌ Lỗi gửi email:", error);
-  });
+function guiBaoCaoEmail(ngay, tongCongSuat, maxDay) {
+  const templateParams = {
+    title: "📊 Báo cáo tuần - Quản lý công suất tiêu thụ năng lượng",
+    to_email: "vonhacphuoc@gmail.com",
+    message: `📊 Báo cáo tuần (${ngay}):\n\n` +
+             `🔺 Ngày có mức tiêu thụ công suất cao nhất: ${maxDay}\n` +
+             `⚡ Công suất cao nhất: ${tongCongSuat} W\n\n` +
+             `📅 Thời gian báo cáo: ${new Date().toLocaleString('vi-VN')}\n` +
+             `🏠 Hệ thống quản lý năng lượng`
+  };
+
+  emailjs.send("service_nzpo11o", "template_ijcvrxp", templateParams)
+    .then((response) => {
+      console.log("✅ Đã gửi báo cáo qua EmailJS!", response.status, response.text);
+      alert("✅ Đã gửi báo cáo tuần qua email thành công!");
+    })
+    .catch((error) => {
+      console.error("❌ Lỗi gửi email:", error);
+      alert("❌ Lỗi khi gửi báo cáo qua email!");
+    });
 }
 
-// Hàm xử lý lấy dữ liệu và gọi hàm gửi
-function kiemTraVaGuiBaoCaoTuan() {
+// Hàm gửi báo cáo thủ công (có thể gọi bất kỳ lúc nào)
+function guiBaoCaoThuCong() {
+  console.log("📧 Đang gửi báo cáo thủ công...");
+  
   const apiURL = "https://opensheet.elk.sh/1agdJDtRKsAEDunMK8TD3E6hBpV87FV-I-0wQrqj2Ln8/Trang%20tính1";
   const now = new Date();
-  if (now.getDay() !== 0) return; // 0 = Chủ nhật
+
   fetch(apiURL)
     .then(res => res.json())
     .then(data => {
       if (!Array.isArray(data) || data.length === 0) {
-        alert("⚠️ Không có dữ liệu!");
+        alert("⚠️ Không có dữ liệu để tạo báo cáo!");
         return;
       }
 
-      // Tìm công suất cao nhất
+      // Lọc dữ liệu 7 ngày vừa qua
+      const past7Days = new Date();
+      past7Days.setDate(now.getDate() - 6);
+
+      const weekData = data.filter(row => {
+        const rawTime = row["Thời gian"];
+        if (!rawTime || !rawTime.includes(" ")) return false;
+
+        const [datePart] = rawTime.split(" ");
+        const [d, m, y] = datePart.split("/").map(Number);
+        
+        if (isNaN(d) || isNaN(m) || isNaN(y)) return false;
+        
+        const time = new Date(y, m - 1, d);
+        return time >= past7Days && time <= now;
+      });
+
+      if (weekData.length === 0) {
+        alert("⚠️ Không có dữ liệu trong 7 ngày vừa qua để tạo báo cáo!");
+        return;
+      }
+
+      // Tìm công suất cao nhất trong tuần
       let maxPower = -Infinity;
       let maxRow = null;
 
-      data.forEach(row => {
-        const power = parseFloat(row["Công suất tiêu thụ (W)"]);
+      weekData.forEach(row => {
+        const power = parseFloat((row["Công suất tiêu thụ (W)"] || "0").replace(",", "."));
         if (!isNaN(power) && power > maxPower) {
           maxPower = power;
           maxRow = row;
         }
       });
 
-      if (maxRow) {
-        const ngay = now.toLocaleDateString("vi-VN");
-        guiBaoCaoEmail(ngay, maxPower);
+      if (maxRow && maxPower > 0) {
+        const maxDate = maxRow["Thời gian"].split(" ")[0];
+        const reportDate = now.toLocaleDateString("vi-VN");
+        
+        guiBaoCaoEmail(reportDate, maxPower.toFixed(2), maxDate);
       } else {
-        alert("⚠️ Không tìm thấy công suất hợp lệ.");
+        alert("⚠️ Không tìm thấy dữ liệu công suất hợp lệ trong tuần.");
       }
     })
     .catch((err) => {
-      console.error("❌ Lỗi gọi API:", err);
-      alert("❌ Lỗi gọi dữ liệu.");
+      console.error("❌ Lỗi gọi API để tạo báo cáo thủ công:", err);
+      alert("❌ Lỗi khi lấy dữ liệu để tạo báo cáo!");
+    });
+}
+
+// Hàm xử lý lấy dữ liệu và gọi hàm gửi báo cáo tuần (chỉ vào chủ nhật)
+function kiemTraVaGuiBaoCaoTuan() {
+  const apiURL = "https://opensheet.elk.sh/1agdJDtRKsAEDunMK8TD3E6hBpV87FV-I-0wQrqj2Ln8/Trang%20tính1";
+  const now = new Date();
+  
+  // Kiểm tra xem có phải chủ nhật không (0 = Chủ nhật)
+  if (now.getDay() !== 0) {
+    console.log("Hôm nay không phải chủ nhật, không gửi báo cáo.");
+    return;
+  }
+
+  console.log("🗓️ Hôm nay là chủ nhật, đang chuẩn bị gửi báo cáo tuần...");
+
+  fetch(apiURL)
+    .then(res => res.json())
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) {
+        console.warn("⚠️ Không có dữ liệu để tạo báo cáo!");
+        alert("⚠️ Không có dữ liệu để tạo báo cáo tuần!");
+        return;
+      }
+
+      // Lọc dữ liệu 7 ngày vừa qua
+      const past7Days = new Date();
+      past7Days.setDate(now.getDate() - 6);
+
+      const weekData = data.filter(row => {
+        const rawTime = row["Thời gian"];
+        if (!rawTime || !rawTime.includes(" ")) return false;
+
+        const [datePart] = rawTime.split(" ");
+        const [d, m, y] = datePart.split("/").map(Number);
+        
+        if (isNaN(d) || isNaN(m) || isNaN(y)) return false;
+        
+        const time = new Date(y, m - 1, d);
+        return time >= past7Days && time <= now;
+      });
+
+      if (weekData.length === 0) {
+        console.warn("⚠️ Không có dữ liệu trong 7 ngày vừa qua!");
+        alert("⚠️ Không có dữ liệu trong 7 ngày vừa qua để tạo báo cáo!");
+        return;
+      }
+
+      // Tìm công suất cao nhất trong tuần
+      let maxPower = -Infinity;
+      let maxRow = null;
+
+      weekData.forEach(row => {
+        const power = parseFloat((row["Công suất tiêu thụ (W)"] || "0").replace(",", "."));
+        if (!isNaN(power) && power > maxPower) {
+          maxPower = power;
+          maxRow = row;
+        }
+      });
+
+      if (maxRow && maxPower > 0) {
+        const maxDate = maxRow["Thời gian"].split(" ")[0]; // Lấy phần ngày
+        const reportDate = now.toLocaleDateString("vi-VN");
+        
+        console.log(`📊 Chuẩn bị gửi báo cáo: Ngày ${maxDate} - Công suất cao nhất: ${maxPower}W`);
+        guiBaoCaoEmail(reportDate, maxPower.toFixed(2), maxDate);
+      } else {
+        console.warn("⚠️ Không tìm thấy công suất hợp lệ trong tuần.");
+        alert("⚠️ Không tìm thấy dữ liệu công suất hợp lệ trong tuần.");
+      }
+    })
+    .catch((err) => {
+      console.error("❌ Lỗi gọi API để tạo báo cáo:", err);
+      alert("❌ Lỗi khi lấy dữ liệu để tạo báo cáo tuần.");
     });
 }
 
 function updateSummary(data) {
-  if (!data || data.length === 0) return;
+  // Hàm này hiện tại không làm gì cả vì thống kê đã được tách riêng
+  // Giữ lại để tương thích với code cũ
+}
+
+// Hàm riêng để cập nhật thống kê 7 ngày vừa qua
+function updateWeeklySummary(data) {
+  if (!data || data.length === 0) {
+    // Nếu không có dữ liệu, hiển thị giá trị mặc định
+    document.getElementById("tong-san-luong").textContent = "0.00";
+    document.getElementById("tong-ngay").textContent = "7";
+    document.getElementById("ngay-max").textContent = "--/--";
+    document.getElementById("san-luong-max").textContent = "0.00";
+    document.getElementById("ngay-min").textContent = "--/--";
+    document.getElementById("san-luong-min").textContent = "0.00";
+    return;
+  }
 
   const label = "Công suất tiêu thụ (W)";
-  const parsedData = data
-    .map(row => {
-      const [datePart] = row["Thời gian"].split(" ");
-      const value = parseFloat((row[label] || "0").replace(",", "."));
-      if (isNaN(value)) return null; // Bỏ dữ liệu lỗi
-      return [datePart, value];
-    })
-    .filter(item => item !== null); // Bỏ null
+  
+  // Nhóm dữ liệu theo ngày và tính tổng công suất mỗi ngày
+  const dailyTotals = {};
+  
+  data.forEach(row => {
+    const rawTime = row["Thời gian"];
+    if (!rawTime || !rawTime.includes(" ")) return;
+    
+    const [datePart] = rawTime.split(" ");
+    const value = parseFloat((row[label] || "0").replace(",", "."));
+    if (isNaN(value)) return;
+    
+    if (!dailyTotals[datePart]) {
+      dailyTotals[datePart] = 0;
+    }
+    dailyTotals[datePart] += value;
+  });
 
-  if (parsedData.length === 0) return; // Không có dữ liệu hợp lệ
+  const dailyData = Object.entries(dailyTotals).map(([date, total]) => [date, total]);
+  
+  if (dailyData.length === 0) {
+    // Nếu không có dữ liệu hợp lệ, hiển thị giá trị mặc định
+    document.getElementById("tong-san-luong").textContent = "0.00";
+    document.getElementById("tong-ngay").textContent = "7";
+    document.getElementById("ngay-max").textContent = "--/--";
+    document.getElementById("san-luong-max").textContent = "0.00";
+    document.getElementById("ngay-min").textContent = "--/--";
+    document.getElementById("san-luong-min").textContent = "0.00";
+    return;
+  }
 
-  const total = parsedData.reduce((sum, item) => sum + item[1], 0);
-  document.getElementById("tong-san-luong").textContent = total.toFixed(2);
-  document.getElementById("tong-ngay").textContent = 7;
+  // Tính tổng của 7 ngày (chuyển từ W thành kWh, giả sử mỗi điểm dữ liệu đại diện cho 1 giờ)
+  const totalKWh = dailyData.reduce((sum, item) => sum + item[1], 0) / 1000; // Chia 1000 để chuyển từ W thành kWh
+  document.getElementById("tong-san-luong").textContent = totalKWh.toFixed(2);
+  document.getElementById("tong-ngay").textContent = "7";
 
-  // Tìm max và min
-const max = parsedData.reduce((a, b) => (b[1] > a[1] ? b : a));
-let min = parsedData
-  .filter(x => x[1] > 0) // bỏ các giá trị bằng 0
-  .reduce((a, b) => (b[1] < a[1] ? b : a));
+  // Tìm ngày có tiêu thụ cao nhất và thấp nhất
+  const maxDay = dailyData.reduce((a, b) => (b[1] > a[1] ? b : a));
+  
+  // Lọc các ngày có tiêu thụ > 0 trước khi tìm min
+  const validDays = dailyData.filter(x => x[1] > 0);
+  
+  if (validDays.length === 0) {
+    // Nếu không có ngày nào có tiêu thụ > 0
+    document.getElementById("ngay-min").textContent = "--/--";
+    document.getElementById("san-luong-min").textContent = "0.00";
+  } else {
+    const minDay = validDays.reduce((a, b) => (b[1] < a[1] ? b : a));
+    document.getElementById("ngay-min").textContent = formatDate(minDay[0]);
+    document.getElementById("san-luong-min").textContent = (minDay[1] / 1000).toFixed(2); // Chuyển thành kWh
+  }
 
-  /*for (let i = 1; i < parsedData.length; i++) {
-    if (parsedData[i][1] > max[1]) max = parsedData[i];
-    if (parsedData[i][1] < min[1]) min = parsedData[i];
-  }*/
-
-  // Hiển thị kết quả
-  document.getElementById("ngay-max").textContent = formatDate(max[0]);
-  document.getElementById("san-luong-max").textContent = max[1].toFixed(2);
-  document.getElementById("ngay-min").textContent = min[0];
-  document.getElementById("san-luong-min").textContent = min[1].toFixed(2);
+  // Hiển thị kết quả cho max
+  document.getElementById("ngay-max").textContent = formatDate(maxDay[0]);
+  document.getElementById("san-luong-max").textContent = (maxDay[1] / 1000).toFixed(2); // Chuyển thành kWh
 }
 
 function formatDate(dateStr) {
