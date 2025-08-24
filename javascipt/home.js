@@ -631,7 +631,7 @@ function thongKeNgayTieuThuCaoNhat(data, label = "Công suất tiêu thụ (W)")
 function guiBaoCaoEmail(ngay, tongCongSuat, maxDay) {
   const templateParams = {
     title: "📊 Báo cáo tuần - Quản lý công suất tiêu thụ năng lượng",
-    to_email: "votrunganh1311@gmail.com.com",
+    to_email: "votrunganh1311@gmail.com",
     message: `📊 Báo cáo tuần (${ngay}):\n\n` +
              `🔺 Ngày có mức tiêu thụ công suất cao nhất: ${maxDay}\n` +
              `⚡ Công suất cao nhất: ${tongCongSuat} W\n\n` +
@@ -876,6 +876,7 @@ function formatDate(dateStr) {
   // Chỉ trả về ngày/tháng
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}`;
 }
+
 
 
 
