@@ -880,5 +880,3 @@ function formatDate(dateStr) {
 
 
 
-
-
