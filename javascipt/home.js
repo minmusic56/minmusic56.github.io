@@ -34,29 +34,65 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("preset").value = "last7";
 
   document.getElementById("preset").addEventListener("change", function () {
-  const now = new Date();
-  let start, end;
+    const now = new Date();
+    let start, end;
 
-  if (this.value === "today") {
-    start = end = now;
-  } else if (this.value === "last7") {
-    end = now;
-    start = new Date();
-    start.setDate(end.getDate() - 6);
-  }
+    try {
+      if (this.value === "today") {
+        start = end = now;
+      } else if (this.value === "last7") {
+        end = now;
+        start = new Date();
+        start.setDate(end.getDate() - 6);
+      } else if (this.value === "custom") {
+        // Không thay đổi gì, giữ nguyên giá trị hiện tại
+        return;
+      }
 
-  startDateInput.setDate(start);
-  endDateInput.setDate(end);
-  document.getElementById("start-date").value = flatpickr.formatDate(start, "m/d/Y");
-  document.getElementById("end-date").value = flatpickr.formatDate(end, "m/d/Y");
+      if (start && end) {
+        startDateInput.setDate(start);
+        endDateInput.setDate(end);
+        document.getElementById("start-date").value = flatpickr.formatDate(start, "m/d/Y");
+        document.getElementById("end-date").value = flatpickr.formatDate(end, "m/d/Y");
 
-  // 👉 Đặt lại giờ mặc định khi chọn lại ngày
-  document.getElementById("start-time").value = "00:00";
-  document.getElementById("end-time").value = "23:59";
+        // 👉 Đặt lại giờ mặc định khi chọn lại ngày
+        document.getElementById("start-time").value = "00:00";
+        document.getElementById("end-time").value = "23:59";
 
-  toggleTimeInputs();
-});
+        toggleTimeInputs();
+        
+        // Tự động cập nhật dữ liệu
+        fetchAndRender();
+      }
+    } catch (error) {
+      console.error("Lỗi khi xử lý preset:", error);
+    }
+  });
 
+
+  // Thêm event listener cho việc thay đổi ngày
+  document.getElementById("start-date").addEventListener("change", function() {
+    toggleTimeInputs();
+    fetchAndRender();
+  });
+
+  document.getElementById("end-date").addEventListener("change", function() {
+    toggleTimeInputs();
+    fetchAndRender();
+  });
+
+  // Thêm event listener cho việc thay đổi giờ
+  document.getElementById("start-time").addEventListener("change", function() {
+    if (!this.disabled) {
+      fetchAndRender();
+    }
+  });
+
+  document.getElementById("end-time").addEventListener("change", function() {
+    if (!this.disabled) {
+      fetchAndRender();
+    }
+  });
 
   document.getElementById("apply-btn").addEventListener("click", () => {
     startAutoUpdate();
@@ -114,8 +150,38 @@ window.addEventListener("DOMContentLoaded", () => {
     const startDateStr = document.getElementById("start-date").value;
     const endDateStr = document.getElementById("end-date").value;
 
-    const [m1, d1, y1] = startDateStr.split("/").map(Number);
-    const [m2, d2, y2] = endDateStr.split("/").map(Number);
+    // Kiểm tra nếu chuỗi ngày trống
+    if (!startDateStr || !endDateStr) {
+      document.querySelectorAll(".time-picker").forEach(el => {
+        el.disabled = true;
+        el.style.opacity = "0.5";
+      });
+      return false;
+    }
+
+    const startParts = startDateStr.split("/");
+    const endParts = endDateStr.split("/");
+    
+    // Kiểm tra định dạng ngày hợp lệ
+    if (startParts.length !== 3 || endParts.length !== 3) {
+      document.querySelectorAll(".time-picker").forEach(el => {
+        el.disabled = true;
+        el.style.opacity = "0.5";
+      });
+      return false;
+    }
+
+    const [m1, d1, y1] = startParts.map(Number);
+    const [m2, d2, y2] = endParts.map(Number);
+
+    // Kiểm tra số hợp lệ
+    if (isNaN(m1) || isNaN(d1) || isNaN(y1) || isNaN(m2) || isNaN(d2) || isNaN(y2)) {
+      document.querySelectorAll(".time-picker").forEach(el => {
+        el.disabled = true;
+        el.style.opacity = "0.5";
+      });
+      return false;
+    }
 
     const sameDay = new Date(y1, m1 - 1, d1).getTime() === new Date(y2, m2 - 1, d2).getTime();
 
@@ -128,13 +194,45 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function parseDateTime(dateStr, timeStr) {
-    const [m, d, y] = dateStr.split("/").map(Number);
-    let [hh, mm, ss] = timeStr.split(":").map(Number);
+    // Kiểm tra đầu vào
+    if (!dateStr || !timeStr) {
+      console.warn("parseDateTime: Thiếu dateStr hoặc timeStr");
+      return null;
+    }
+
+    const dateParts = dateStr.split("/");
+    if (dateParts.length !== 3) {
+      console.warn("parseDateTime: Định dạng ngày không hợp lệ:", dateStr);
+      return null;
+    }
+
+    const [m, d, y] = dateParts.map(Number);
+    if (isNaN(m) || isNaN(d) || isNaN(y)) {
+      console.warn("parseDateTime: Ngày không phải số:", dateStr);
+      return null;
+    }
+
+    const timeParts = timeStr.split(":");
+    if (timeParts.length < 2) {
+      console.warn("parseDateTime: Định dạng giờ không hợp lệ:", timeStr);
+      return null;
+    }
+
+    let [hh, mm, ss] = timeParts.map(Number);
 
     // Nếu không có giây thì gán = 0
-    if (ss === undefined) ss = 0;
+    if (isNaN(ss)) ss = 0;
+    if (isNaN(hh) || isNaN(mm)) {
+      console.warn("parseDateTime: Giờ phút không phải số:", timeStr);
+      return null;
+    }
 
-    return new Date(y, m - 1, d, hh, mm, ss);
+    try {
+      return new Date(y, m - 1, d, hh, mm, ss);
+    } catch (error) {
+      console.warn("parseDateTime: Lỗi tạo Date object:", error);
+      return null;
+    }
   }
 
 
@@ -174,20 +272,42 @@ window.addEventListener("DOMContentLoaded", () => {
     ? parseDateTime(endDateStr, endTimeStr)
     : parseDateTime(endDateStr, "23:59:59");
 
+  // Kiểm tra nếu không parse được ngày tháng
+  if (!start || !end) {
+    console.error("Không thể parse được ngày tháng từ input");
+    return;
+  }
+
   fetch(apiURL)
     .then(res => res.json())
     .then(data => {
+      if (!Array.isArray(data)) {
+        console.warn("Dữ liệu API không phải là mảng:", data);
+        return;
+      }
+
       const filtered = data.filter(row => {
         const rawTime = row["Thời gian"];
         if (!rawTime || !rawTime.includes(" ")) return false;
 
-        const [datePart, timePart] = rawTime.split(" ");
-        const [d, m, y] = datePart.split("/").map(Number);
-        const [hh, mm, ss] = timePart.split(":").map(Number);
+        try {
+          const [datePart, timePart] = rawTime.split(" ");
+          const [d, m, y] = datePart.split("/").map(Number);
+          const [hh, mm, ss] = timePart.split(":").map(Number);
 
-        const time = new Date(y, m - 1, d, hh, mm, ss);
-        return time >= start && time <= end;
+          // Kiểm tra tính hợp lệ của các số
+          if (isNaN(d) || isNaN(m) || isNaN(y) || isNaN(hh) || isNaN(mm)) return false;
+
+          const time = new Date(y, m - 1, d, hh, mm, ss || 0);
+          return time >= start && time <= end;
+        } catch (error) {
+          console.warn("Lỗi parse thời gian:", rawTime, error);
+          return false;
+        }
       });
+
+      console.log(`Đã lọc được ${filtered.length} bản ghi từ ${data.length} bản ghi gốc`);
+
       const times = filtered.map((r) => {
         const [datePart, timePart] = r["Thời gian"].split(" ");
         return isSameDay ? timePart : r["Thời gian"];
@@ -745,10 +865,16 @@ function updateWeeklySummary(data) {
 }
 
 function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  return `${day}/${month}`;
+  // dateStr có dạng "dd/mm/yyyy" từ dữ liệu API
+  if (!dateStr || typeof dateStr !== 'string') return "--/--";
+  
+  const parts = dateStr.split("/");
+  if (parts.length !== 3) return "--/--";
+  
+  const [day, month, year] = parts;
+  
+  // Chỉ trả về ngày/tháng
+  return `${day.padStart(2, "0")}/${month.padStart(2, "0")}`;
 }
 
 
