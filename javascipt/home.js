@@ -140,10 +140,17 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   let autoUpdateInterval = null;
+  let summaryUpdateInterval = null; // Thêm interval cho thống kê tuần
+  
   function startAutoUpdate() {
     if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+    if (summaryUpdateInterval) clearInterval(summaryUpdateInterval);
+    
     fetchAndRender();
+    loadWeeklySummary(); // Load thống kê ngay lập tức
+    
     autoUpdateInterval = setInterval(fetchAndRender, 2000);
+    summaryUpdateInterval = setInterval(loadWeeklySummary, 2000); // Cập nhật thống kê mỗi 2s
   }
 
   function toggleTimeInputs() {
@@ -508,8 +515,23 @@ document.getElementById("download-excel-btn").addEventListener("click", function
 
   function updateTotal(values) {
     const total = values.reduce((a, b) => a + b, 0);
+    
+    // Lấy thông tin bộ lọc hiện tại để hiển thị
+    const startDateStr = document.getElementById("start-date").value;
+    const endDateStr = document.getElementById("end-date").value;
+    const preset = document.getElementById("preset").value;
+    
+    let periodText = "";
+    if (preset === "today") {
+      periodText = "hôm nay";
+    } else if (preset === "last7") {
+      periodText = "7 ngày qua";
+    } else {
+      periodText = `từ ${startDateStr} đến ${endDateStr}`;
+    }
+    
     document.getElementById("info3").innerHTML = `
-      <h3 style="font-size:14px;color:#fff;">Tổng công suất tiêu thụ</h3>
+      <h3 style="font-size:14px;color:#fff;">Tổng công suất tiêu thụ (${periodText})</h3>
       <h3 style="color:#fff;">${total.toFixed(2)} W</h3>
     `;
   }
@@ -517,9 +539,6 @@ document.getElementById("download-excel-btn").addEventListener("click", function
   toggleTimeInputs();
   startAutoUpdate();
   loadWeeklySummary(); // Load thống kê 7 ngày vừa qua ngay khi khởi động
-  
-  // Cập nhật thống kê tuần mỗi 30 phút
-  setInterval(loadWeeklySummary, 30 * 60 * 1000);
 
   document.querySelectorAll(".chart").forEach(chartEl => {
   chartEl.addEventListener("mouseenter", () => {
@@ -528,12 +547,21 @@ document.getElementById("download-excel-btn").addEventListener("click", function
       autoUpdateInterval = null;
       console.log("⏸️ Auto update paused due to hover");
     }
+    if (summaryUpdateInterval) {
+      clearInterval(summaryUpdateInterval);
+      summaryUpdateInterval = null;
+      console.log("⏸️ Summary update paused due to hover");
+    }
   });
 
   chartEl.addEventListener("mouseleave", () => {
     if (!autoUpdateInterval) {
       autoUpdateInterval = setInterval(fetchAndRender, 2000);
       console.log("▶️ Auto update resumed after hover");
+    }
+    if (!summaryUpdateInterval) {
+      summaryUpdateInterval = setInterval(loadWeeklySummary, 2000);
+      console.log("▶️ Summary update resumed after hover");
     }
   });
 });
@@ -627,8 +655,13 @@ function thongKeNgayTieuThuCaoNhat(data, label = "Công suất tiêu thụ (W)")
   };
 }
 
-// Hàm gửi email bằng EmailJS
+// Hàm gửi email bằng EmailJS - ĐÃ TẮT
 function guiBaoCaoEmail(ngay, tongCongSuat, maxDay) {
+  console.log("📧 Chức năng gửi email đã được tắt");
+  console.log(`Báo cáo: ${ngay} - Ngày cao nhất: ${maxDay} - Công suất: ${tongCongSuat}W`);
+  alert("ℹ️ Chức năng gửi email đã được tắt");
+  return; // Thoát sớm, không gửi email
+  
   const templateParams = {
     title: "📊 Báo cáo tuần - Quản lý công suất tiêu thụ năng lượng",
     to_email: "votrunganh1311@gmail.com",
