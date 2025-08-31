@@ -655,13 +655,8 @@ function thongKeNgayTieuThuCaoNhat(data, label = "Công suất tiêu thụ (W)")
   };
 }
 
-// Hàm gửi email bằng EmailJS - ĐÃ TẮT
+// Hàm gửi email bằng EmailJS
 function guiBaoCaoEmail(ngay, tongCongSuat, maxDay) {
-  console.log("📧 Chức năng gửi email đã được tắt");
-  console.log(`Báo cáo: ${ngay} - Ngày cao nhất: ${maxDay} - Công suất: ${tongCongSuat}W`);
-  alert("ℹ️ Chức năng gửi email đã được tắt");
-  return; // Thoát sớm, không gửi email
-  
   const templateParams = {
     title: "📊 Báo cáo tuần - Quản lý công suất tiêu thụ năng lượng",
     to_email: "votrunganh1311@gmail.com",
